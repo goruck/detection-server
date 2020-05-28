@@ -1,0 +1,72 @@
+// Protocol buffer definitions for detection_server.py
+//
+// Copyright (c) 2020 Lindo St. Angel
+syntax = "proto3";
+
+package detection_server;
+
+service DetectionServer {
+    // A simple RPC. 
+    rpc GetDetectedObjects(Empty) returns (DetectedObjectData) {}
+    rpc GetCameraResolution(Empty) returns (CameraResolution) {}
+    rpc GetCameraIntrinsicParameters(Empty) returns (CameraIntrinsicParameters) {}
+  }
+
+message DetectedObject {
+    // Most likely label.
+    string label = 1;
+
+    // Score of label.
+    // This can be used as a measure of confidence.
+    float score = 2;
+
+    // Relative area of bounding box. Max = 1.
+    float area = 3;
+
+    // (0,0) is top left coord of image containing object.
+    // (1,0) is top right "".
+    // (0,1) is bottom left "".
+    // (1,1) is bottom right "".
+
+    // Relative (0 to 1.0) centroid coords.
+    message Centroid {
+        float x = 1;
+        float y = 2;
+    }
+
+    Centroid centroid = 4;
+
+    // Relative (0 to 1.0) bounding box coordinates.
+    message BBox{
+        float xmin = 1;
+        float ymin = 2;
+        float xmax = 3;
+        float ymax = 4;
+    }
+
+    BBox bbox = 5;
+}
+
+message DetectedObjectData {
+    // Recognized object data.
+    repeated DetectedObject data = 1;
+}
+
+message CameraResolution {
+    // Camera resolution in pixels.
+    int32 width = 1;
+    int32 height = 2;
+}
+
+message CameraIntrinsicParameters {
+    // Camera intrinstic params.
+    // All units in pixels.
+    float fx = 1; // x focal length
+    float fy = 2; // y focal length
+    float cx = 3; // x principal point
+    float cy = 4; // y principal point
+}
+
+message Empty {
+    // Placeholder.
+}
