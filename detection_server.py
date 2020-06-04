@@ -35,10 +35,6 @@ DIST_COEFFS = np.array(
 STACK_DEPTH = 100
 detected_objects = collections.deque(maxlen=STACK_DEPTH)
 
-# We don't care about all labels from detection, just these.
-# TODO - make parameter or read from config file.
-VALID_LABELS = ['person', 'dog', 'cat']
-
 DetectedObject = collections.namedtuple(
     'DetectedObject', ['label', 'score', 'area', 'centroid', 'bbox'])
 
@@ -131,10 +127,6 @@ def get_output(interpreter, score_threshold, labels):
         id = int(class_ids[i])
         return labels.get(id, id)
 
-    def valid_label(i):
-        """ Check for labels we care about. """
-        return get_label(i) in VALID_LABELS
-
     def make(i):
         ymin, xmin, ymax, xmax = boxes[i]
         bbox = BBox(
@@ -149,7 +141,7 @@ def get_output(interpreter, score_threshold, labels):
             centroid = bbox.centroid,
             bbox = bbox)
 
-    return [make(i) for i in range(count) if (scores[i] >= score_threshold) and valid_label(i)]
+    return [make(i) for i in range(count) if scores[i] >= score_threshold]
 
 def start_detector(camera_idx, interpreter, threshold, labels, camera_res, display):
     """ Detect objects from camera frames. """
@@ -207,14 +199,17 @@ class DetectionServerServicer(detection_server_pb2_grpc.DetectionServerServicer)
             cx=CAMERA_MATRIX[0,2], cy=CAMERA_MATRIX[1,2])
 
     def GetDetectedObjects(self, request, context):
-        """ Return all objects in stack, then clear it.
+        """ Return desired objects in stack, then clear it.
             if stack is empty, return empty object.
         """
+        # Fetch the desired labels to return.
+        desired_labels = [label for label in request.labels]
+
         if not detected_objects:
             data = [detection_server_pb2.DetectedObject()]
         else:
             # Since stack was appended left, most recent objs will be read first.
-            data = [obj for obj in detected_objects]
+            data = [obj for obj in detected_objects if obj.label in desired_labels]
             detected_objects.clear()
 
         return detection_server_pb2.DetectedObjectData(data=data)

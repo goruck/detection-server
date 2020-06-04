@@ -20,7 +20,7 @@ def get_camera_resolution(stub):
         exit(1)
 
 def get_detected_objects(stub):
-    request = detection_server_pb2.Empty()
+    request = detection_server_pb2.DesiredLabels(labels=['person', 'dog', 'cat'])
     try:
         response = stub.GetDetectedObjects(request)
         print('Detected object(s) fetched.')

@@ -7,7 +7,7 @@ package detection_server;
 
 service DetectionServer {
     // A simple RPC. 
-    rpc GetDetectedObjects(Empty) returns (DetectedObjectData) {}
+    rpc GetDetectedObjects(DesiredLabels) returns (DetectedObjectData) {}
     rpc GetCameraResolution(Empty) returns (CameraResolution) {}
     rpc GetCameraIntrinsicParameters(Empty) returns (CameraIntrinsicParameters) {}
   }
@@ -69,4 +69,10 @@ message CameraIntrinsicParameters {
 
 message Empty {
     // Placeholder.
+}
+
+message DesiredLabels {
+    // Desired labels of detected objects.
+    // Must be a subset of all class labels.
+    repeated string labels = 1;
 }
