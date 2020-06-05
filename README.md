@@ -71,3 +71,6 @@ Everything here is licensed under the [MIT license](./LICENSE).
 
 # Contact
 For questions or comments about this project please contact the author goruck (Lindo St. Angel) at {lindostangel} AT {gmail} DOT {com}.
+
+# Acknowledgements
+This project inspired by and borrows from [OpenCV camera examples with Coral](https://github.com/google-coral/examples-camera/tree/master/opencv). 
