@@ -1,79 +1,73 @@
-*Work in progress - p/o the radar-ml project*
-
 # detection_server
-object detection served over grpc using Google Edge TPU.
 
-```protobuf
-// Protocol buffer definitions for detection_server.py
-//
-// Copyright (c) 2020 Lindo St. Angel
-syntax = "proto3";
+This project implements object detection served over grpc using the Google Edge TPU. These detections are returned from the server in the form of the centroid coordinates of the object's bounding box and its label. 
 
-package detection_server;
+This is part of the [radar-ml](https://github.com/goruck/radar-ml) project.
 
-service DetectionServer {
-    // A simple RPC. 
-    rpc GetDetectedObjects(Empty) returns (DetectedObjectData) {}
-    rpc GetCameraResolution(Empty) returns (CameraResolution) {}
-    rpc GetCameraIntrinsicParameters(Empty) returns (CameraIntrinsicParameters) {}
-  }
+# Installation
+Clone this directory and cd to it.
 
-message DetectedObject {
-    // Most likely label.
-    string label = 1;
+Install the required Python modules in [requirements.txt](./requirements.txt) and OpenCV per the instructions [here](https://github.com/goruck/smart-zoneminder/tree/master/tpu-servers#installation).
 
-    // Score of label.
-    // This can be used as a measure of confidence.
-    float score = 2;
+If you'd like to compile the Protocol Buffers from scratch, use the following command.
 
-    // Relative area of bounding box. Max = 1.
-    float area = 3;
-
-    // (0,0) is top left coord of image containing object.
-    // (1,0) is top right "".
-    // (0,1) is bottom left "".
-    // (1,1) is bottom right "".
-
-    // Relative (0 to 1.0) centroid coords.
-    message Centroid {
-        float x = 1;
-        float y = 2;
-    }
-
-    Centroid centroid = 4;
-
-    // Relative (0 to 1.0) bounding box coordinates.
-    message BBox{
-        float xmin = 1;
-        float ymin = 2;
-        float xmax = 3;
-        float ymax = 4;
-    }
-
-    BBox bbox = 5;
-}
-
-message DetectedObjectData {
-    // Recognized object data.
-    repeated DetectedObject data = 1;
-}
-
-message CameraResolution {
-    // Camera resolution in pixels.
-    int32 width = 1;
-    int32 height = 2;
-}
-
-message CameraIntrinsicParameters {
-    // Camera intrinstic params.
-    // All units in pixels.
-    float fx = 1; // x focal length
-    float fy = 2; // y focal length
-    float cx = 3; // x principal point
-    float cy = 4; // y principal point
-}
-
-message Empty {
-    // Placeholder.
-}
+```bash
+$ python3 -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. ./detection_server.proto
 ```
+
+# Usage
+See [detection_server.proto](./detection_server.proto) for the server's interface definitions. 
+
+The following illustrates an example client calling the detection server's services.
+
+```python
+"""
+Example client for detection_server.py.
+
+Copyright (c) 2020 Lindo St. Angel
+"""
+
+import grpc
+import detection_server_pb2
+import detection_server_pb2_grpc
+
+def get_camera_resolution(stub):
+    request = detection_server_pb2.Empty()
+    try:
+        response = stub.GetCameraResolution(request)
+        print('Camera resolution fetched.')
+        return response
+    except grpc.RpcError as err:
+        print(err.details()) #pylint: disable=no-member
+        print('{}, {}'.format(err.code().name, err.code().value)) #pylint: disable=no-member
+        exit(1)
+
+def get_detected_objects(stub):
+    request = detection_server_pb2.DesiredLabels(labels=['person', 'dog', 'cat'])
+    try:
+        response = stub.GetDetectedObjects(request)
+        print('Detected object(s) fetched.')
+        return response
+    except grpc.RpcError as err:
+        print(err.details()) #pylint: disable=no-member
+        print('{}, {}'.format(err.code().name, err.code().value)) #pylint: disable=no-member
+        exit(1)
+
+def run():
+    with grpc.insecure_channel('localhost:50051') as channel:
+        stub = detection_server_pb2_grpc.DetectionServerStub(channel)
+        while True:
+            res = get_camera_resolution(stub)
+            print(res)
+            res = get_detected_objects(stub)
+            print(res)
+
+if __name__ == '__main__':
+    run()
+```
+
+# License
+Everything here is licensed under the [MIT license](./LICENSE).
+
+# Contact
+For questions or comments about this project please contact the author goruck (Lindo St. Angel) at {lindostangel} AT {gmail} DOT {com}.
