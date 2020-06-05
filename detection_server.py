@@ -15,8 +15,10 @@ import grpc
 import detection_server_pb2
 import detection_server_pb2_grpc
 import concurrent
-import common
+import tflite_runtime.interpreter as tflite
 from PIL import Image
+
+EDGETPU_SHARED_LIB = 'libedgetpu.so.1'
 
 # Calibration constants for ELP-USBFHD01M-L21 (2.1mm lens).
 # Sensor: 1/3" CMOS OV2710.
@@ -77,6 +79,41 @@ class BBox(collections.namedtuple('BBox', ['xmin', 'ymin', 'xmax', 'ymax'])):
         """
         return self.width >= 0 and self.height >= 0
 
+def make_interpreter(model_file):
+    model_file, *device = model_file.split('@')
+    return tflite.Interpreter(
+        model_path=model_file,
+        experimental_delegates=[
+            tflite.load_delegate(EDGETPU_SHARED_LIB,
+            {'device': device[0]} if device else {})
+        ])
+
+def output_tensor(interpreter, i):
+    """Returns dequantized output tensor if quantized before."""
+    output_details = interpreter.get_output_details()[i]
+    output_data = np.squeeze(interpreter.tensor(output_details['index'])())
+    if 'quantization' not in output_details:
+        return output_data
+    scale, zero_point = output_details['quantization']
+    if scale == 0:
+        return output_data - zero_point
+    return scale * (output_data - zero_point)
+
+def input_image_size(interpreter):
+    """Returns input image size as (width, height, channels) tuple."""
+    _, height, width, channels = interpreter.get_input_details()[0]['shape']
+    return width, height, channels
+
+def input_tensor(interpreter):
+    """Returns input tensor view as numpy array of shape (height, width, 3)."""
+    tensor_index = interpreter.get_input_details()[0]['index']
+    return interpreter.tensor(tensor_index)()[0]
+
+def set_input(interpreter, image, resample=Image.NEAREST):
+    """Copies data to input tensor."""
+    image = image.resize((input_image_size(interpreter)[0:2]), resample)
+    input_tensor(interpreter)[:, :] = image
+
 def load_labels(path):
     p = re.compile(r'\s*(\d+)(.+)')
     with open(path, 'r', encoding='utf-8') as f:
@@ -118,10 +155,10 @@ def append_object_data(objs, camera_res, img):
 
 def get_output(interpreter, score_threshold, labels):
     """Returns list of detected objects."""
-    boxes = common.output_tensor(interpreter, 0)
-    class_ids = common.output_tensor(interpreter, 1)
-    scores = common.output_tensor(interpreter, 2)
-    count = int(common.output_tensor(interpreter, 3))
+    boxes = output_tensor(interpreter, 0)
+    class_ids = output_tensor(interpreter, 1)
+    scores = output_tensor(interpreter, 2)
+    count = int(output_tensor(interpreter, 3))
 
     def get_label(i):
         id = int(class_ids[i])
@@ -161,7 +198,7 @@ def start_detector(camera_idx, interpreter, threshold, labels, camera_res, displ
             cv2_im_u_rgb = cv2.cvtColor(cv2_im_u, cv2.COLOR_BGR2RGB)
             pil_im = Image.fromarray(cv2_im_u_rgb)
 
-            common.set_input(interpreter, pil_im)
+            set_input(interpreter, pil_im)
             interpreter.invoke()
 
             objs = get_output(interpreter,
@@ -231,7 +268,7 @@ def serve():
     args = parser.parse_args()
 
     print('Loading {} with {} labels.'.format(args.model, args.labels))
-    interpreter = common.make_interpreter(os.path.join(default_model_dir, args.model))
+    interpreter = make_interpreter(os.path.join(default_model_dir, args.model))
     interpreter.allocate_tensors()
     labels = load_labels(args.labels)
 
