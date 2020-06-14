@@ -270,7 +270,7 @@ def serve():
     print('Loading {} with {} labels.'.format(args.model, args.labels))
     interpreter = make_interpreter(os.path.join(default_model_dir, args.model))
     interpreter.allocate_tensors()
-    labels = load_labels(args.labels)
+    labels = load_labels(os.path.join(default_model_dir, args.labels))
 
     # Get native camera resolution.
     cap = cv2.VideoCapture(args.camera_idx)
