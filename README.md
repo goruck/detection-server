@@ -1,4 +1,4 @@
-# detection_server
+# detection-server
 
 This project implements object detection served over grpc using the Google Edge TPU. These detections are returned from the server in the form of the centroid coordinates of the object's bounding box and its label. 
 
