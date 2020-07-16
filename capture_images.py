@@ -17,22 +17,23 @@ from PIL import Image
 def capture(parse_args, interpreter, labels, camera_res):
     """ Capture images from camera frames and write to disk. """
     sample = 0
-    prev = 0
+    sample_time = 0
+    start_time = time.time()
 
     try:
         cap = cv2.VideoCapture(parse_args.camera_idx)
         while cap.isOpened():
-            time_elapsed = time.time() - prev
-
             if sample > parse_args.num_samples:
                 break
+
+            elapsed_time = time.time() - sample_time
 
             ret, frame = cap.read()
             if not ret:
                 break
 
-            if time_elapsed > 1.0 / parse_args.frame_rate:
-                prev = time.time()
+            if elapsed_time > 1.0 / parse_args.frame_rate:
+                sample_time = time.time()
                 cv2_im = frame
                 cv2_im_u = cv2.undistort(cv2_im, common.CAMERA_MATRIX,
                     common.DIST_COEFFS)
@@ -44,14 +45,17 @@ def capture(parse_args, interpreter, labels, camera_res):
                 objs = common.get_output(interpreter,
                     score_threshold=parse_args.threshold, labels=labels)
 
+                img_id = uuid.uuid4()
+                img_name = ''.join((str(img_id), '.jpg'))
+
                 for obj in objs:
                     if obj.label in parse_args.capture:
-                        id = uuid.uuid4()
-                        img_name = ''.join((str(id), '.jpg'))
+                        # Image may appear in more than one named directory
+                        # if it contains more than one class of interest.
                         img_path = '{}'.format(os.path.join(parse_args.images,
                             obj.label, img_name))
                         print('Found "{}" at t+ {:.2f} sec. Writing "{}".'.format(
-                            obj.label, time_elapsed, img_name))
+                            obj.label, sample_time - start_time, img_name))
                         cv2.imwrite(img_path, cv2_im_u)
                         sample += 1
 
