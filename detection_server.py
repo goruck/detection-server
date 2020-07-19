@@ -45,9 +45,27 @@ def start_detector(camera_idx, interpreter, threshold, labels, camera_res, displ
                 score_threshold=threshold,
                 labels=labels)
 
-            cv2_im_u = common.annotate_image(objs, camera_res, cv2_im_u)
+            # Create proto buffer message and add to stack.
+            for obj in objs:
+                detected_object = detection_server_pb2.DetectedObject(
+                    label = obj.label,
+                    score = obj.score,
+                    area = obj.area,
+                    centroid = detection_server_pb2.DetectedObject.Centroid(
+                        x = obj.centroid.x,
+                        y = obj.centroid.y
+                    ),
+                    bbox = detection_server_pb2.DetectedObject.BBox(
+                        xmin = obj.bbox.xmin,
+                        ymin = obj.bbox.ymin,
+                        xmax = obj.bbox.xmax,
+                        ymax = obj.bbox.ymax
+                    )
+                )
+                detected_objects.appendleft(detected_object)
 
             if display:
+                cv2_im_u = common.annotate_image(objs, camera_res, cv2_im_u)
                 cv2.imshow('frame', cv2_im_u)
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
