@@ -60,7 +60,7 @@ def capture(parse_args, interpreter, labels, camera_res):
                         sample += 1
 
                 if parse_args.display:
-                    cv2_im_u = common.append_object_data(objs, camera_res, cv2_im_u)
+                    cv2_im_u = common.annotate_image(objs, camera_res, cv2_im_u)
                     cv2.imshow('detections', cv2_im_u)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break

@@ -110,10 +110,8 @@ def load_labels(path):
        lines = (p.match(line).groups() for line in f.readlines())
        return {int(num): text.strip() for num, text in lines}
 
-def append_object_data(objs, camera_res, img):
-    """ Create proto buffer message and add to stack.
-    Annotate image with label name and object centroid.
-    """
+def annotate_image(objs, camera_res, img):
+    """ Annotate image with label name and object centroid. """
     for obj in objs:
         cx = int(obj.centroid.x*camera_res[0])
         cy = int(obj.centroid.y*camera_res[1])

@@ -45,7 +45,7 @@ def start_detector(camera_idx, interpreter, threshold, labels, camera_res, displ
                 score_threshold=threshold,
                 labels=labels)
 
-            cv2_im_u = common.append_object_data(objs, camera_res, cv2_im_u)
+            cv2_im_u = common.annotate_image(objs, camera_res, cv2_im_u)
 
             if display:
                 cv2.imshow('frame', cv2_im_u)
