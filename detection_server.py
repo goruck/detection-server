@@ -20,12 +20,12 @@ from PIL import Image
 STACK_DEPTH = 100
 detected_objects = collections.deque(maxlen=STACK_DEPTH)
 
-def start_detector(camera_idx, interpreter, threshold, labels, camera_res, display):
-    """ Detect objects from camera frames. """
+def start_detector(args, interpreter, labels, camera_res):
+    """ Detect max_objs objects from camera frames. """
     detected_objects.clear()
 
     try:
-        cap = cv2.VideoCapture(camera_idx)
+        cap = cv2.VideoCapture(args.camera_idx)
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
@@ -42,8 +42,12 @@ def start_detector(camera_idx, interpreter, threshold, labels, camera_res, displ
             interpreter.invoke()
 
             objs = common.get_output(interpreter,
-                score_threshold=threshold,
+                score_threshold=args.threshold,
                 labels=labels)
+
+            # Reject images with number of detected objects > max_objs.
+            if len(objs) > args.max_objs:
+                continue
 
             # Create proto buffer message and add to stack.
             for obj in objs:
@@ -64,7 +68,7 @@ def start_detector(camera_idx, interpreter, threshold, labels, camera_res, displ
                 )
                 detected_objects.appendleft(detected_object)
 
-            if display:
+            if args.display:
                 cv2_im_u = common.annotate_image(objs, camera_res, cv2_im_u)
                 cv2.imshow('frame', cv2_im_u)
                 if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -120,6 +124,7 @@ def serve():
     parser.add_argument('--labels', help='label file path',
                         default=os.path.join(default_model_dir, default_labels))
     parser.add_argument('--camera_idx', type=int, help='Index of which video source to use. ', default=1)
+    parser.add_argument('--max_objs', type=int, help='Max number of detected objects. ', default=100)
     parser.add_argument('--threshold', type=float, help='Detector threshold. ', default=0.7)
     parser.add_argument('--display', dest='display', action='store_true', help='Display object data. ')
     parser.set_defaults(display=False)
@@ -137,8 +142,7 @@ def serve():
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         # Start a thread to detect objects in camera frames.
-        future = executor.submit(start_detector, args.camera_idx, interpreter,
-            args.threshold, labels, camera_res, args.display)
+        future = executor.submit(start_detector, args, interpreter, labels, camera_res)
 
         # Start other threads for the gprc server. 
         server = grpc.server(executor)
